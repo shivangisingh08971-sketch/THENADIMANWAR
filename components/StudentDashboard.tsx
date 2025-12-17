@@ -417,3 +417,149 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
     </div>
   );
 };
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, CheckCircle, XCircle, Clock, RefreshCw, Trophy } from 'lucide-react';
+
+interface MCQItem {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+}
+
+export const StudentExamView = ({ chapterId, isTestMode, onExit }: { chapterId: string, isTestMode: boolean, onExit: () => void }) => {
+    const [questions, setQuestions] = useState<MCQItem[]>([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [score, setScore] = useState(0);
+    const [showResult, setShowResult] = useState(false);
+    
+    // Answers tracking
+    const [selectedOption, setSelectedOption] = useState<number | null>(null);
+    const [isAnswered, setIsAnswered] = useState(false);
+
+    useEffect(() => {
+        // Load Data Saved by Admin
+        const key = `nst_content_demo_${chapterId}`; // Make sure this key matches Admin's save key
+        const stored = localStorage.getItem(key);
+        if(stored) {
+            const data = JSON.parse(stored);
+            const qs = isTestMode ? data.weeklyTestMcqData : data.manualMcqData;
+            setQuestions(qs || []);
+        }
+    }, [chapterId, isTestMode]);
+
+    const handleOptionClick = (idx: number) => {
+        if (isAnswered) return;
+        setSelectedOption(idx);
+        setIsAnswered(true);
+        
+        // Auto check if it's Practice Mode
+        if (!isTestMode) {
+             if (idx === questions[currentIndex].correctAnswer) setScore(score + 1);
+        }
+    };
+
+    const nextQuestion = () => {
+        // If Test Mode, score is calculated at end or silently here
+        if (isTestMode && selectedOption === questions[currentIndex].correctAnswer) {
+            setScore(prev => prev + 1);
+        }
+
+        if (currentIndex < questions.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+            setSelectedOption(null);
+            setIsAnswered(false);
+        } else {
+            setShowResult(true);
+        }
+    };
+
+    if (questions.length === 0) return <div className="p-10 text-center text-slate-500">No Questions Found for this Chapter.</div>;
+
+    if (showResult) {
+        return (
+            <div className="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md mx-auto mt-10">
+                <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6 text-yellow-600">
+                    <Trophy size={40} />
+                </div>
+                <h2 className="text-2xl font-black text-slate-800 mb-2">Quiz Completed!</h2>
+                <p className="text-slate-500 mb-6">You scored</p>
+                <div className="text-6xl font-black text-blue-600 mb-2">{score}</div>
+                <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8">Out of {questions.length}</div>
+                
+                <div className="flex gap-3">
+                    <button onClick={onExit} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200">Exit</button>
+                    <button onClick={() => window.location.reload()} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2"><RefreshCw size={18} /> Retry</button>
+                </div>
+            </div>
+        );
+    }
+
+    const currentQ = questions[currentIndex];
+
+    return (
+        <div className="max-w-2xl mx-auto p-4">
+            {/* PROGRESS BAR */}
+            <div className="flex items-center justify-between mb-6">
+                <div className="text-xs font-bold text-slate-400 uppercase">Question {currentIndex + 1} / {questions.length}</div>
+                {isTestMode && <div className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={12} /> Test Mode</div>}
+            </div>
+            <div className="h-2 bg-slate-100 rounded-full mb-8 overflow-hidden">
+                <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}></div>
+            </div>
+
+            {/* QUESTION CARD */}
+            <div className="bg-white p-6 rounded-[32px] shadow-lg border border-slate-100 mb-6">
+                <h3 className="text-lg font-bold text-slate-800 leading-relaxed mb-6">
+                    {currentQ.question}
+                </h3>
+
+                <div className="space-y-3">
+                    {currentQ.options.map((opt, idx) => {
+                        let btnColor = "bg-slate-50 border-transparent text-slate-600 hover:bg-blue-50";
+                        // Logic to show colors (Green/Red) ONLY if Answered AND (Practice Mode OR Result Screen)
+                        if (isAnswered && !isTestMode) {
+                            if (idx === currentQ.correctAnswer) btnColor = "bg-green-100 border-green-500 text-green-800 ring-1 ring-green-500";
+                            else if (idx === selectedOption) btnColor = "bg-red-50 border-red-500 text-red-800 ring-1 ring-red-500";
+                        } else if (selectedOption === idx) {
+                            btnColor = "bg-blue-600 text-white shadow-lg scale-[1.02]";
+                        }
+
+                        return (
+                            <button 
+                                key={idx}
+                                onClick={() => handleOptionClick(idx)}
+                                disabled={isAnswered}
+                                className={`w-full p-4 rounded-xl text-left font-bold text-sm border-2 transition-all duration-200 ${btnColor}`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${selectedOption===idx ? 'border-white' : 'border-slate-300'}`}>
+                                        {String.fromCharCode(65 + idx)}
+                                    </div>
+                                    {opt}
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* EXPLANATION BOX (Only in Practice Mode) */}
+            {!isTestMode && isAnswered && currentQ.explanation && (
+                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-6 animate-in slide-in-from-bottom-2">
+                    <p className="text-xs font-black text-blue-600 uppercase mb-1">Explanation:</p>
+                    <p className="text-sm text-blue-800">{currentQ.explanation}</p>
+                </div>
+            )}
+
+            {/* NEXT BUTTON */}
+            <button 
+                onClick={nextQuestion} 
+                disabled={!isAnswered}
+                className={`w-full py-4 rounded-2xl font-black text-white shadow-xl flex items-center justify-center gap-2 transition-all ${!isAnswered ? 'bg-slate-300 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 hover:scale-[1.02] active:scale-95'}`}
+            >
+                {currentIndex === questions.length - 1 ? "Finish Exam" : "Next Question"} <ArrowRight size={20} />
+            </button>
+        </div>
+    );
+};
