@@ -1432,3 +1432,150 @@ export default {
     </div>
   );
 };
+  // --- MCQ & TEST LOGIC ---
+
+  // 1. सवाल में कुछ बदलने के लिए (Question, Answer, Explanation)
+  const updateMcq = (isTest: boolean, idx: number, field: keyof MCQItem, val: any) => {
+      const list = isTest ? editingTestMcqs : editingMcqs;
+      const updated = [...list];
+      updated[idx] = { ...updated[idx], [field]: val };
+      isTest ? setEditingTestMcqs(updated) : setEditingMcqs(updated);
+  };
+
+  // 2. ऑप्शन (A, B, C, D) बदलने के लिए
+  const updateMcqOption = (isTest: boolean, qIdx: number, oIdx: number, val: string) => {
+      const list = isTest ? editingTestMcqs : editingMcqs;
+      const updated = [...list];
+      updated[qIdx].options[oIdx] = val;
+      isTest ? ? setEditingTestMcqs(updated) : setEditingMcqs(updated);
+  };
+
+  // 3. नया खाली सवाल जोड़ने के लिए (+ Add Question)
+  const addMcq = (isTest: boolean) => {
+      const newItem: MCQItem = { 
+          question: 'New Question', 
+          options: ['Option A','Option B','Option C','Option D'], 
+          correctAnswer: 0, 
+          explanation: '' 
+      };
+      isTest ? setEditingTestMcqs([...editingTestMcqs, newItem]) : setEditingMcqs([...editingMcqs, newItem]);
+  };
+
+  // 4. सवाल डिलीट करने के लिए
+  const removeMcq = (isTest: boolean, idx: number) => {
+      const list = isTest ? editingTestMcqs : editingMcqs;
+      const updated = list.filter((_, i) => i !== idx);
+      isTest ? setEditingTestMcqs(updated) : setEditingMcqs(updated);
+  };
+      {/* --- MCQ & WEEKLY TEST SECTION --- */}
+      {['CONTENT_MCQ', 'CONTENT_TEST'].includes(activeTab) && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right">
+              
+              {/* Header */}
+              <div className="flex items-center gap-4 mb-6 border-b pb-4">
+                  <button onClick={() => setActiveTab('DASHBOARD')} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200"><ArrowLeft size={20} /></button>
+                  <h3 className="text-xl font-black text-slate-800">
+                      {activeTab === 'CONTENT_MCQ' ? 'Chapter Practice MCQs' : 'Weekly Test Manager'}
+                  </h3>
+              </div>
+
+              {/* Subject Selector (Dropdowns) */}
+              <div className="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="flex gap-2 mb-2">
+                    <select value={selBoard} onChange={e => setSelBoard(e.target.value as any)} className="p-2 border rounded font-bold text-sm"><option value="CBSE">CBSE</option><option value="BSEB">BSEB</option></select>
+                    <select value={selClass} onChange={e => setSelClass(e.target.value as any)} className="p-2 border rounded font-bold text-sm"><option value="10">Class 10</option><option value="12">Class 12</option></select>
+                  </div>
+                  <select value={selSubject?.name || ''} onChange={e => { const s = getSubjectsList(selClass, selStream).find(sub => sub.name === e.target.value); if(s) handleSubjectClick(s); }} className="w-full p-2 border rounded font-bold text-sm"><option value="">Select Subject</option>{getSubjectsList(selClass, selStream).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}</select>
+              </div>
+
+              {/* LIST VIEW: जब कोई चैप्टर सेलेक्ट न हो */}
+              {selSubject && !editingChapterId && (
+                  <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                      {selChapters.map((ch) => (
+                          <div key={ch.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200 hover:bg-slate-100">
+                              <span className="font-bold text-sm text-slate-700">{ch.title}</span>
+                              <button onClick={() => loadChapterContent(ch.id)} className="px-4 py-2 bg-blue-100 text-blue-700 font-bold rounded-lg text-xs hover:bg-blue-200">
+                                  {activeTab === 'CONTENT_MCQ' ? 'Edit Practice' : 'Edit Test'}
+                              </button>
+                          </div>
+                      ))}
+                  </div>
+              )}
+
+              {/* EDITOR VIEW: जब चैप्टर सेलेक्ट हो जाए */}
+              {editingChapterId && (
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div className="flex justify-between items-center mb-4 border-b pb-2">
+                          <div>
+                              <h4 className="font-black text-slate-800 text-sm">{selChapters.find(c => c.id === editingChapterId)?.title}</h4>
+                              <p className="text-[10px] text-slate-500 uppercase font-bold">Total Qs: {(activeTab === 'CONTENT_TEST' ? editingTestMcqs : editingMcqs).length}</p>
+                          </div>
+                          <div className="flex gap-2">
+                              {/* Import Button */}
+                              <button onClick={() => openImportModal(activeTab === 'CONTENT_MCQ' ? 'CHAPTER_MCQ' : 'CHAPTER_TEST')} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-green-700 shadow"><ClipboardPaste size={14} /> Import</button>
+                              {/* Add Button */}
+                              <button onClick={() => addMcq(activeTab === 'CONTENT_TEST')} className="bg-white border border-blue-600 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-50">+ Add New</button>
+                              {/* Save Button */}
+                              <button onClick={saveChapterContent} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow hover:bg-blue-700"><Save size={14} /> Save</button>
+                              {/* Close Button */}
+                              <button onClick={() => setEditingChapterId(null)} className="text-slate-400 hover:text-red-500 p-1"><X size={18} /></button>
+                          </div>
+                      </div>
+
+                      {/* QUESTIONS LIST */}
+                      <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 pb-10 custom-scrollbar">
+                          {(activeTab === 'CONTENT_TEST' ? editingTestMcqs : editingMcqs).map((q, idx) => (
+                              <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative group">
+                                  {/* Delete Question Button */}
+                                  <button onClick={() => removeMcq(activeTab === 'CONTENT_TEST', idx)} className="absolute top-2 right-2 text-slate-300 hover:text-red-500 p-1"><Trash2 size={16} /></button>
+                                  
+                                  <div className="flex gap-2 mb-3">
+                                      <span className="bg-slate-100 text-slate-500 font-bold w-6 h-6 flex items-center justify-center rounded text-xs mt-1">{idx + 1}</span>
+                                      <textarea 
+                                          value={q.question} 
+                                          onChange={e => updateMcq(activeTab === 'CONTENT_TEST', idx, 'question', e.target.value)} 
+                                          className="flex-1 p-2 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none resize-none" 
+                                          rows={2} 
+                                          placeholder="Type question here..." 
+                                      />
+                                  </div>
+
+                                  {/* Options Grid */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 ml-8">
+                                      {q.options.map((opt, oIdx) => (
+                                          <div key={oIdx} className="flex items-center gap-2">
+                                              <input 
+                                                  type="radio" 
+                                                  name={`q-${activeTab}-${idx}`} 
+                                                  checked={q.correctAnswer === oIdx} 
+                                                  onChange={() => updateMcq(activeTab === 'CONTENT_TEST', idx, 'correctAnswer', oIdx)}
+                                                  className="accent-green-600 w-4 h-4 cursor-pointer"
+                                              />
+                                              <input 
+                                                  type="text" 
+                                                  value={opt} 
+                                                  onChange={e => updateMcqOption(activeTab === 'CONTENT_TEST', idx, oIdx, e.target.value)}
+                                                  className={`w-full p-2 border rounded-lg text-xs font-medium transition-colors ${q.correctAnswer === oIdx ? 'border-green-300 bg-green-50 text-green-800 font-bold' : 'border-slate-200 focus:border-blue-400'}`}
+                                                  placeholder={`Option ${String.fromCharCode(65+oIdx)}`}
+                                              />
+                                          </div>
+                                      ))}
+                                  </div>
+
+                                  {/* Explanation Field */}
+                                  <div className="ml-8 mt-3">
+                                      <input 
+                                          type="text" 
+                                          value={q.explanation} 
+                                          onChange={e => updateMcq(activeTab === 'CONTENT_TEST', idx, 'explanation', e.target.value)}
+                                          className="w-full p-2 border border-dashed border-slate-300 rounded-lg text-xs text-slate-500 bg-slate-50 focus:bg-white focus:border-blue-300 outline-none"
+                                          placeholder="Add Explanation (Optional)"
+                                      />
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              )}
+          </div>
+      )}
